@@ -1,17 +1,44 @@
 import express from 'express';
-import { apolloServer } from 'graphql-tools';
+import { apolloExpress, graphiqlExpress } from 'apollo-server';
+import { makeExecutableSchema, addMockFunctionsToSchema } from 'graphql-tools';
+import bodyParser from 'body-parser';
+
 import Schema from './data/schema';
 import Mocks from './data/mocks';
+import Resolvers from './data/resolvers';
 
 const GRAPHQL_PORT = 8080;
 
 const graphQLServer = express();
-graphQLServer.use('/graphql', apolloServer({
-  graphiql: true,
-  pretty: true,
-  schema: Schema,
+
+const executableSchema = makeExecutableSchema({
+  typeDefs: Schema,
+  resolvers: Resolvers,
+});
+
+addMockFunctionsToSchema({
+  schema: executableSchema,
   mocks: Mocks,
-}));
-graphQLServer.listen(GRAPHQL_PORT, () => console.log(
-  `GraphQL Server is now running on http://localhost:${GRAPHQL_PORT}/graphql`
-));
+  // preserveResolvers: true, // by uncommenting this enable default resolver
+});
+
+graphQLServer.use(
+  '/graphql',
+  bodyParser.json(),
+  apolloExpress({
+    schema: executableSchema,
+    context: {},
+  })
+);
+
+graphQLServer.use(
+  '/graphiql',
+  graphiqlExpress({
+    endpointURL: '/graphql',
+  })
+);
+
+graphQLServer.listen(GRAPHQL_PORT, () => {
+  console.log(`GraphQL Server is now running on http://localhost:${GRAPHQL_PORT}/graphql.`);
+  console.log(`GraphiQL Server is now running on http://localhost:${GRAPHQL_PORT}/graphiql.`);
+});
